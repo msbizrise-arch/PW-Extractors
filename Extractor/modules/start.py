@@ -26,7 +26,7 @@ async def start(client, message):
             IMG[0],
             caption=START_TXT.format(message.from_user.mention),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_menu")],
+                [InlineKeyboardButton("🚀 Physics Wallah🚀", callback_data="pw_menu")],
                 [InlineKeyboardButton("💎 My Plan", callback_data="myplan"),
                  InlineKeyboardButton("❓ Help", callback_data="help")],
                 [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/")]
