@@ -3,9 +3,11 @@ import logging
 import threading
 import asyncio
 
+import requests as http_requests
 from flask import Flask, jsonify
 from pyrogram import idle
 
+from config import BOT_TOKEN
 from Extractor import app as pyrogram_app
 from Extractor.modules import ALL_MODULES
 import importlib
@@ -32,10 +34,30 @@ def run_flask():
     flask_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 
+def delete_webhook():
+    """Delete any existing Bot API webhook so MTProto polling works."""
+    if not BOT_TOKEN:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=false"
+        resp = http_requests.get(url, timeout=10).json()
+        LOGGER.info(f"deleteWebhook response: {resp}")
+        # Also verify with getWebhookInfo
+        info_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
+        info = http_requests.get(info_url, timeout=10).json()
+        LOGGER.info(f"getWebhookInfo: {info}")
+    except Exception as e:
+        LOGGER.error(f"Failed to delete webhook: {e}")
+
+
 async def start_bot():
     """Start the Pyrogram bot client via MTProto polling."""
+    # Delete any leftover webhook from previous deployments
+    delete_webhook()
+
     await pyrogram_app.start()
-    LOGGER.info("Bot started successfully via MTProto polling!")
+    me = await pyrogram_app.get_me()
+    LOGGER.info(f"Bot @{me.username} started successfully via MTProto polling!")
     await idle()
     await pyrogram_app.stop()
 
