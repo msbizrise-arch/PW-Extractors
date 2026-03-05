@@ -2,9 +2,6 @@ import os
 import logging
 import threading
 
-import nest_asyncio
-nest_asyncio.apply()  # Fix: "Future attached to different loop" RuntimeError on Render
-
 import requests as http_requests
 from flask import Flask, jsonify
 
