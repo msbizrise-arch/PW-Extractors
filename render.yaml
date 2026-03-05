@@ -1,18 +1,13 @@
-version: 1
 services:
   - type: web
     name: pw-extractor
     runtime: python
-    repo: https://github.com/msbizrise-arch/PW-Extractor.git
-    branch: main
-    rootDir: .
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.1
-      - key: PORT
-        value: 10000
       - key: API_ID
         sync: false
       - key: API_HASH
@@ -21,13 +16,11 @@ services:
         sync: false
       - key: OWNER_ID
         sync: false
-      - key: SUDO_USERS
-        sync: false
       - key: MONGO_URL
         sync: false
       - key: CHANNEL_ID
         sync: false
       - key: PREMIUM_LOGS
         sync: false
-    autoDeploy: true
-    plan: free
+      - key: SUDO_USERS
+        sync: false

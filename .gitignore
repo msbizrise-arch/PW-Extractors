@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 .env
+*.txt
 log.txt
 *.session
 *.session-journal
+downloads/
