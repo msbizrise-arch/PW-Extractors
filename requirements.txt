@@ -8,4 +8,4 @@ flask
 gunicorn==20.1.0
 aiofiles
 nest_asyncio
-aiohttp
+pyromod
