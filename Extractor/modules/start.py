@@ -29,7 +29,7 @@ async def start(client, message):
                 [InlineKeyboardButton("🚀 Physics Wallah🚀", callback_data="pw_menu")],
                 [InlineKeyboardButton("💎 My Plan", callback_data="myplan"),
                  InlineKeyboardButton("❓ Help", callback_data="help")],
-                [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/")]
+                [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/SmartBoy_ApnaMS")]
             ])
         )
     except Exception as e:
