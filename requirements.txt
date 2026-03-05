@@ -1,0 +1,9 @@
+pyrogram==2.0.106
+tgcrypto
+motor
+requests
+pytz
+python-dotenv
+flask
+gunicorn==20.1.0
+aiofiles
