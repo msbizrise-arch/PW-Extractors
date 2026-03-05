@@ -60,7 +60,7 @@ async def pw_mobile(client, message):
     user_data[user_id] = {"state": AWAITING_PHONE}
     await client.send_message(
         user_id,
-        "**📱 Send your mobile number (without +91)**\n"
+        "**📱 Send your mobile number❤️‍🔥❤️‍🔥 (without +91)**\n"
         "Example: `9876543210`\n\n"
         "Send /cancel to abort."
     )
