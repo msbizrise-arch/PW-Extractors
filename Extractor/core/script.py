@@ -1,17 +1,17 @@
 # Bot Messages and Media
 
 IMG = [
-    "https://graph.org/file/dbd48ba7093582ab20063.jpg",
-    "https://graph.org/file/b7a933f423c153f866699.jpg"
+    "https://graph.org/file/a5ad11e14714f9da64830-c5cf91c2ce7d6127ae.jpg",
+    "https://graph.org/file/64c0f2767c6b1c5e88df2-d5f4d5e06658e3dbe9.jpg"
 ]
 
 START_TXT = """**👋 Hello** {},
 
-🎓 **Welcome to PW Extractor Bot!**
+🎓 **Welcome to PW Extractor Bot!🚀**
 
 I'm your personal **Physics Wallah** content extractor. I can help you:
 
-✅ Extract **Video Links** (M3U8 format)
+✅ Extract **Video Links**
 ✅ Extract **Notes/PDFs** 
 ✅ Extract **DPPs** and **Assignments**
 ✅ Get **Batch & Subject** lists
@@ -56,7 +56,7 @@ Choose your plan:
    • Lifetime Access
    • All Features
 
-📞 Contact @YourUsername to purchase!"""
+📞 Contact @SmartBoy_ApnaMS to purchase!"""
 
 HELP_TXT = """**📖 How to Use**
 
