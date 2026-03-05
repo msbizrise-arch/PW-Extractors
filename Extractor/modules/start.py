@@ -1,24 +1,51 @@
+import logging
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor import app
 from Extractor.core.script import START_TXT, IMG
 from Extractor.core.func import subscribe, chk_user
 
+LOGGER = logging.getLogger(__name__)
+
 
 @app.on_message(filters.command("start") & filters.private)
 async def start(client, message):
-    if await subscribe(client, message):
-        return
-    await message.reply_photo(
-        IMG[0],
-        caption=START_TXT.format(message.from_user.mention),
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_start")],
-                [InlineKeyboardButton("💎 My Plan", callback_data="myplan")],
-            ]
-        ),
-    )
+    LOGGER.info(f"Received /start from user {message.from_user.id}")
+    try:
+        sub_result = await subscribe(client, message)
+        if sub_result:
+            LOGGER.info("User not subscribed, force sub message sent")
+            return
+    except Exception as e:
+        LOGGER.error(f"Subscribe check failed: {e}")
+    try:
+        await message.reply_photo(
+            IMG[0],
+            caption=START_TXT.format(message.from_user.mention),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_start")],
+                    [InlineKeyboardButton("💎 My Plan", callback_data="myplan")],
+                ]
+            ),
+        )
+        LOGGER.info("Start message sent successfully")
+    except Exception as e:
+        LOGGER.error(f"Failed to send start message: {e}")
+        # Fallback: send text-only message if photo fails
+        try:
+            await message.reply_text(
+                START_TXT.format(message.from_user.mention),
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_start")],
+                        [InlineKeyboardButton("💎 My Plan", callback_data="myplan")],
+                    ]
+                ),
+            )
+            LOGGER.info("Fallback text message sent")
+        except Exception as e2:
+            LOGGER.error(f"Fallback also failed: {e2}")
 
 
 @app.on_callback_query(filters.regex("^pw_start$"))
