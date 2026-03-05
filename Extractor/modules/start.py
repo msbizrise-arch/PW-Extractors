@@ -1,95 +1,90 @@
+import logging
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor import app
-from Extractor.core.script import START_TXT, IMG, HELP_TXT
+from Extractor.core.script import START_TXT, IMG
 from Extractor.core.func import subscribe, chk_user
-from Extractor.modules.pw import pw_mobile, pw_token
 
-@app.on_message(filters.command("start"))
+LOGGER = logging.getLogger(__name__)
+
+
+@app.on_message(filters.command("start") & filters.private)
 async def start(client, message):
-    """Handle /start command"""
-    # Check channel subscription
-    if await subscribe(client, message):
-        return
-    
-    # Send welcome message with buttons
-    await message.reply_photo(
-        IMG[0],
-        caption=START_TXT.format(message.from_user.mention),
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_menu")],
-            [InlineKeyboardButton("💎 My Plan", callback_data="myplan"),
-             InlineKeyboardButton("❓ Help", callback_data="help")],
-            [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/SmartBoy_Apnams")]
-        ])
-    )
-
-@app.on_callback_query(filters.regex("check_sub"))
-async def check_sub_cb(client, query):
-    """Check subscription again"""
-    await query.message.delete()
-    await start(client, query.message)
-
-@app.on_callback_query(filters.regex("pw_menu"))
-async def pw_menu_cb(client, query):
-    """Show PW menu"""
-    # Check if user is premium
-    is_premium = await chk_user(query.from_user.id)
-    if is_premium:
-        await query.answer("⚠️ You need premium access!", show_alert=True)
-        await query.message.edit_text(
-            "**💎 Premium Required!**\n\nYou need to purchase a plan to use this feature.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💎 View Plans", callback_data="plans")],
-                [InlineKeyboardButton("🔙 Back", callback_data="start")]
-            ])
+    LOGGER.info(f"Received /start from user {message.from_user.id}")
+    try:
+        sub_result = await subscribe(client, message)
+        if sub_result:
+            LOGGER.info("User not subscribed, force sub message sent")
+            return
+    except Exception as e:
+        LOGGER.error(f"Subscribe check failed: {e}")
+    try:
+        await message.reply_photo(
+            IMG[0],
+            caption=START_TXT.format(message.from_user.mention),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_start")],
+                    [InlineKeyboardButton("💎 My Plan", callback_data="myplan")],
+                ]
+            ),
         )
+        LOGGER.info("Start message sent successfully")
+    except Exception as e:
+        LOGGER.error(f"Failed to send start message: {e}")
+        # Fallback: send text-only message if photo fails
+        try:
+            await message.reply_text(
+                START_TXT.format(message.from_user.mention),
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔥 Physics Wallah", callback_data="pw_start")],
+                        [InlineKeyboardButton("💎 My Plan", callback_data="myplan")],
+                    ]
+                ),
+            )
+            LOGGER.info("Fallback text message sent")
+        except Exception as e2:
+            LOGGER.error(f"Fallback also failed: {e2}")
+
+
+@app.on_callback_query(filters.regex("^pw_start$"))
+async def pw_cb(client, query):
+    user_id = query.from_user.id
+    if await chk_user(user_id):
+        await query.answer("❌ You need premium access!", show_alert=True)
         return
-    
+    await query.answer()
     await query.message.edit_text(
-        "**🔐 Choose Login Method**",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📱 Mobile + OTP", callback_data="pw_mobile")],
-            [InlineKeyboardButton("🔑 Direct Token", callback_data="pw_token")],
-            [InlineKeyboardButton("🔙 Back", callback_data="start")]
-        ])
+        "**Choose Login Method:**",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("📱 Mobile + OTP", callback_data="pw_mobile")],
+                [InlineKeyboardButton("🔑 Direct Token", callback_data="pw_token")],
+            ]
+        ),
     )
 
-@app.on_callback_query(filters.regex("start"))
-async def start_cb(client, query):
-    """Back to start"""
-    await query.message.delete()
-    await start(client, query.message)
 
-@app.on_callback_query(filters.regex("help"))
-async def help_cb(client, query):
-    """Show help"""
-    await query.message.edit_text(
-        HELP_TXT,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Back", callback_data="start")]
-        ])
-    )
-
-@app.on_callback_query(filters.regex("pw_mobile"))
+@app.on_callback_query(filters.regex("^pw_mobile$"))
 async def pw_mobile_cb(client, query):
-    """Handle mobile login"""
-    await query.message.delete()
+    from Extractor.modules.pw import pw_mobile
+
+    await query.answer()
     await pw_mobile(client, query.message)
 
-@app.on_callback_query(filters.regex("pw_token"))
+
+@app.on_callback_query(filters.regex("^pw_token$"))
 async def pw_token_cb(client, query):
-    """Handle token login"""
-    await query.message.delete()
+    from Extractor.modules.pw import pw_token
+
+    await query.answer()
     await pw_token(client, query.message)
 
-@app.on_callback_query(filters.regex("plans"))
-async def plans_cb(client, query):
-    """Show plans"""
-    from Extractor.core.script import PREMIUM_TXT
-    await query.message.edit_text(
-        PREMIUM_TXT,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Back", callback_data="start")]
-        ])
-    )
+
+@app.on_callback_query(filters.regex("^myplan$"))
+async def myplan_cb(client, query):
+    from Extractor.modules.plans import show_plan
+
+    await query.answer()
+    await show_plan(client, query)
