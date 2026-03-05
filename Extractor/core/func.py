@@ -1,47 +1,88 @@
-from config import CHANNEL_ID, SUDO_USERS
+"""
+Helper Functions Module
+Fixed: Better error handling for MongoDB issues - bot won't crash if DB fails
+"""
+from config import CHANNEL_ID, SUDO_USERS, OWNER_ID
 from Extractor.core.script import FORCE_MSG
 from pyrogram.errors import UserNotParticipant
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor.core.mongo.plans_db import premium_users
 
+
 async def chk_user(user_id):
-    """Check if user is premium or sudo"""
-    users = await premium_users()
-    if user_id in users or user_id in SUDO_USERS:
-        return 0  # Allowed
-    return 1  # Not allowed
+    """
+    Check if user has premium access.
+    Returns 0 if allowed, 1 if not.
+    """
+    # Owner always allowed
+    if user_id == OWNER_ID and OWNER_ID != 0:
+        return 0
+    
+    # Sudo users always allowed
+    if user_id in SUDO_USERS:
+        return 0
+    
+    # Check premium in database
+    try:
+        users = await premium_users()
+        if user_id in users:
+            return 0
+    except Exception as e:
+        print(f"WARNING: chk_user database error: {e}")
+        # If database fails, allow access (fail open for better UX)
+        return 0
+    
+    return 1
+
 
 async def subscribe(app, message):
-    """Check if user joined the required channel"""
+    """
+    Check if user is subscribed to the channel.
+    Returns 0 if ok, 1 if not subscribed.
+    """
     if not CHANNEL_ID or CHANNEL_ID == 0:
-        return 0  # No channel set
+        return 0
     
     try:
         user = await app.get_chat_member(CHANNEL_ID, message.from_user.id)
         if user.status in ["kicked", "left"]:
             raise UserNotParticipant
-        return 0  # User is member
+        return 0
     except UserNotParticipant:
         try:
             url = await app.export_chat_invite_link(CHANNEL_ID)
-        except:
+        except Exception:
             url = "https://t.me/"
         
-        await message.reply_photo(
-            "https://graph.org/file/b7a933f423c153f866699.jpg",
-            caption=FORCE_MSG.format(message.from_user.mention),
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📢 Join Channel", url=url)],
-                [InlineKeyboardButton("🔄 Try Again", callback_data="check_sub")]
-            ])
-        )
-        return 1  # User not member
+        try:
+            await message.reply_photo(
+                "https://graph.org/file/b7a933f423c153f866699.jpg",
+                caption=FORCE_MSG.format(message.from_user.mention),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📢 Join Channel", url=url)],
+                    [InlineKeyboardButton("🔄 Try Again", callback_data="check_sub")]
+                ])
+            )
+        except Exception:
+            # Fallback to text message
+            await message.reply_text(
+                FORCE_MSG.format(message.from_user.mention),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📢 Join Channel", url=url)],
+                    [InlineKeyboardButton("🔄 Try Again", callback_data="check_sub")]
+                ])
+            )
+        return 1
     except Exception as e:
         print(f"Subscribe check error: {e}")
-        return 0  # Allow on error
+        return 0
+
 
 async def get_seconds(time_string):
-    """Convert time string to seconds"""
+    """
+    Convert time string like '30days' to seconds.
+    Returns 0 if invalid format.
+    """
     try:
         value = int(''.join(filter(str.isdigit, time_string)))
         unit = ''.join(filter(str.isalpha, time_string)).lower()
@@ -60,5 +101,5 @@ async def get_seconds(time_string):
             return value * 86400 * 365
         else:
             return value * 86400  # Default to days
-    except:
+    except Exception:
         return 0
