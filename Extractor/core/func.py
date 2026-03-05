@@ -56,7 +56,7 @@ async def subscribe(app, message):
         
         try:
             await message.reply_photo(
-                "https://graph.org/file/b7a933f423c153f866699.jpg",
+                "https://graph.org/file/a5ad11e14714f9da64830-c5cf91c2ce7d6127ae.jpg",
                 caption=FORCE_MSG.format(message.from_user.mention),
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📢 Join Channel", url=url)],
