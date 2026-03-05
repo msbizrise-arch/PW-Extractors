@@ -1,64 +1,60 @@
-from config import CHANNEL_ID, SUDO_USERS
-from Extractor.core.script import FORCE_MSG
+from config import CHANNEL_ID, SUDO_USERS, OWNER_ID
+from Extractor.core import script
 from pyrogram.errors import UserNotParticipant
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor.core.mongo.plans_db import premium_users
 
-async def chk_user(user_id):
-    """Check if user is premium or sudo"""
-    users = await premium_users()
-    if user_id in users or user_id in SUDO_USERS:
-        return 0  # Allowed
-    return 1  # Not allowed
 
-async def subscribe(app, message):
-    """Check if user joined the required channel"""
+async def chk_user(user_id):
+    """Check if user has premium access. Returns 0 if allowed, 1 if not."""
+    users = await premium_users()
+    if user_id in users:
+        return 0
+    if user_id in SUDO_USERS:
+        return 0
+    if user_id == OWNER_ID:
+        return 0
+    return 1
+
+
+async def subscribe(client, message):
+    """Check if user is subscribed to the channel. Returns 0 if ok, 1 if not."""
     if not CHANNEL_ID or CHANNEL_ID == 0:
-        return 0  # No channel set
-    
+        return 0
     try:
-        user = await app.get_chat_member(CHANNEL_ID, message.from_user.id)
+        user = await client.get_chat_member(CHANNEL_ID, message.from_user.id)
         if user.status in ["kicked", "left"]:
             raise UserNotParticipant
-        return 0  # User is member
+        return 0
     except UserNotParticipant:
         try:
-            url = await app.export_chat_invite_link(CHANNEL_ID)
-        except:
-            url = "https://t.me/"
-        
+            url = await client.export_chat_invite_link(CHANNEL_ID)
+        except Exception:
+            return 0
         await message.reply_photo(
             "https://graph.org/file/b7a933f423c153f866699.jpg",
-            caption=FORCE_MSG.format(message.from_user.mention),
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📢 Join Channel", url=url)],
-                [InlineKeyboardButton("🔄 Try Again", callback_data="check_sub")]
-            ])
+            caption=script.FORCE_MSG.format(message.from_user.mention),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("Join Channel", url=url)]]
+            ),
         )
-        return 1  # User not member
-    except Exception as e:
-        print(f"Subscribe check error: {e}")
-        return 0  # Allow on error
+        return 1
+    except Exception:
+        return 0
+
 
 async def get_seconds(time_string):
-    """Convert time string to seconds"""
-    try:
-        value = int(''.join(filter(str.isdigit, time_string)))
-        unit = ''.join(filter(str.isalpha, time_string)).lower()
-        
-        if unit.startswith('day') or unit.startswith('d'):
-            return value * 86400
-        elif unit.startswith('hour') or unit.startswith('h'):
-            return value * 3600
-        elif unit.startswith('min') or unit.startswith('m'):
-            return value * 60
-        elif unit.startswith('week') or unit.startswith('w'):
-            return value * 86400 * 7
-        elif unit.startswith('month') or unit.startswith('mo'):
-            return value * 86400 * 30
-        elif unit.startswith('year') or unit.startswith('y'):
-            return value * 86400 * 365
-        else:
-            return value * 86400  # Default to days
-    except:
-        return 0
+    """Convert time string like '30days' to seconds."""
+    value = int("".join(filter(str.isdigit, time_string)))
+    unit = "".join(filter(str.isalpha, time_string)).lower()
+    if unit.startswith("day"):
+        return value * 86400
+    if unit.startswith("hour"):
+        return value * 3600
+    if unit.startswith("min"):
+        return value * 60
+    if unit.startswith("month"):
+        return value * 86400 * 30
+    if unit.startswith("year"):
+        return value * 86400 * 365
+    return 0
