@@ -7,7 +7,7 @@ IMG = [
 
 START_TXT = """**👋 Hello** {},
 
-🎓 **Welcome to PW Extractor Bot!😘🚀**
+🎓 **Welcome to PW Extractor Bot!🚀**
 
 I'm your personal **Physics Wallah** content extractor. I can help you:
 
@@ -19,6 +19,7 @@ I'm your personal **Physics Wallah** content extractor. I can help you:
 🔐 **Login Methods:**
 • Mobile Number + OTP
 • Direct Access Token
+• Without Login (Universal Token)
 
 💎 **Premium Features:**
 • Unlimited extractions
@@ -81,7 +82,7 @@ HELP_TXT = """**📖 How to Use PW Extractor**
 - **Without Login:** Uses a universal token to search all PW batches
 
 **Extraction includes:**
-- Video CDN links
+- Video CDN links (encrypted)
 - PDF/Notes links
 - DPP links
 
