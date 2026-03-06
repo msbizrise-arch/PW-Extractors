@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytz
 import datetime
 from Extractor import app
-from config import ADMIN_IDS, PREMIUM_LOGS
+from config import ADMIN_IDS, PREMIUM_LOGS, OWNER_ID, SUDO_USERS
 from Extractor.core.func import get_seconds
 from Extractor.core.mongo.plans_db import (
     add_premium,
