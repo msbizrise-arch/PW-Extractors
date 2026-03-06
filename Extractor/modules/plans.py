@@ -1,6 +1,7 @@
 """
 Premium Plans Module
 Fixed: Better error handling, MongoDB connection fixes
+Fixed: Collection truth value testing error
 """
 from datetime import timedelta
 import pytz
@@ -8,12 +9,23 @@ import datetime
 from Extractor import app
 from config import ADMIN_IDS, PREMIUM_LOGS, OWNER_ID, SUDO_USERS
 from Extractor.core.func import get_seconds
-from Extractor.core.mongo.plans_db import (
-    add_premium,
-    remove_premium,
-    check_premium,
-    premium_users,
-)
+
+try:
+    from Extractor.core.mongo.plans_db import (
+        add_premium,
+        remove_premium,
+        check_premium,
+        premium_users,
+    )
+except ImportError:
+    # Fallback import
+    from Extractor.modules.plans_db import (
+        add_premium,
+        remove_premium,
+        check_premium,
+        premium_users,
+    )
+
 from pyrogram import filters
 from pyrogram.types import Message
 import logging
@@ -21,7 +33,7 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 # Build admin filter (handle empty list)
-admin_filter = filters.user(ADMIN_IDS) if ADMIN_IDS else filters.user([0])
+admin_filter = filters.user(ADMIN_IDS) if ADMIN_IDS else filters.user([OWNER_ID]) if OWNER_ID else filters.user([0])
 
 
 @app.on_message(filters.command("add_premium") & admin_filter)
@@ -126,7 +138,7 @@ async def remove_premium_cmd(client, message: Message):
     
     try:
         data = await check_premium(user_id)
-        if not data:
+        if data is None:
             await message.reply_text("❌ No premium data found for this user!")
             return
     except Exception as e:
@@ -184,7 +196,7 @@ async def chk_premium_cmd(client, message: Message):
     for uid in users[:20]:  # Limit to 20 users
         try:
             data = await check_premium(uid)
-            if data and "expire_date" in data:
+            if data is not None and "expire_date" in data:
                 tz = pytz.timezone("Asia/Kolkata")
                 expiry = data["expire_date"].astimezone(tz)
                 text += f"• `{uid}` - {expiry.strftime('%d-%m-%Y')}\n"
@@ -218,7 +230,7 @@ async def myplan_cmd(client, message: Message):
         )
         return
     
-    if not data or "expire_date" not in data:
+    if data is None or "expire_date" not in data:
         await message.reply_text(
             f"👤 **User:** {user_mention}\n\n"
             f"❌ You do not have any active premium plan.\n\n"
@@ -279,7 +291,7 @@ async def show_plan(client, query):
         )
         return
     
-    if not data or "expire_date" not in data:
+    if data is None or "expire_date" not in data:
         await message.edit_text(
             f"👤 **User:** {user_mention}\n\n"
             f"❌ You do not have any active premium plan.\n\n"

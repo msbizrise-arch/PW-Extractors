@@ -3,6 +3,7 @@ Start Module - Handles /start command and callbacks
 Fixed: All callback handlers properly pass user context.
        All buttons work correctly.
        Added /help command handler.
+       Fixed import issues.
 """
 import logging
 from pyrogram import filters
@@ -10,7 +11,31 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor import app
 from Extractor.core.script import START_TXT, IMG, HELP_TXT, PREMIUM_TXT
 from Extractor.core.func import subscribe, chk_user
-from Extractor.modules.pw import pw_mobile, pw_token, pw_nologin
+
+# Import PW module functions
+try:
+    from Extractor.modules.pw import pw_mobile, pw_token, pw_nologin, user_data, AWAITING_PHONE, AWAITING_TOKEN, AWAITING_KEYWORD, AWAITING_NL_TOKEN, _get_working_token
+except ImportError:
+    # Fallback - define locally if import fails
+    LOGGER = logging.getLogger(__name__)
+    LOGGER.error("Failed to import PW module functions")
+    user_data = {}
+    AWAITING_PHONE = "awaiting_phone"
+    AWAITING_TOKEN = "awaiting_token"
+    AWAITING_KEYWORD = "awaiting_keyword"
+    AWAITING_NL_TOKEN = "awaiting_nl_token"
+    
+    async def pw_mobile(client, message):
+        await message.reply_text("Error: PW module not loaded properly.")
+    
+    async def pw_token(client, message):
+        await message.reply_text("Error: PW module not loaded properly.")
+    
+    async def pw_nologin(client, message):
+        await message.reply_text("Error: PW module not loaded properly.")
+    
+    def _get_working_token():
+        return ""
 
 LOGGER = logging.getLogger(__name__)
 
@@ -115,10 +140,15 @@ async def pw_menu_cb(client, query):
     """Show PW menu with login method options."""
     try:
         await query.answer()
+        
         # Check if user is premium
-        is_premium = await chk_user(query.from_user.id)
-        if is_premium:
-            await query.answer("You need premium access!", show_alert=True)
+        try:
+            is_premium = await chk_user(query.from_user.id)
+        except Exception as e:
+            LOGGER.error(f"Premium check error: {e}")
+            is_premium = False
+        
+        if not is_premium:
             await query.message.edit_text(
                 "**💎 Premium Required!**\n\n"
                 "You need to purchase a plan to use this feature.\n"
@@ -193,7 +223,7 @@ async def pw_mobile_cb(client, query):
             pass
         # Send message directly to user (not using query.message which lacks from_user)
         chat_id = query.from_user.id
-        # Create a simple namespace to pass to pw_mobile
+        # Send message and set state
         await client.send_message(
             chat_id,
             "**📱 Send your mobile number (without +91)**\n"
@@ -201,7 +231,6 @@ async def pw_mobile_cb(client, query):
             "Send /cancel to abort."
         )
         # Set the state directly
-        from Extractor.modules.pw import user_data, AWAITING_PHONE
         user_data[chat_id] = {"state": AWAITING_PHONE}
     except Exception as e:
         LOGGER.error(f"pw_mobile_cb error: {e}")
@@ -233,7 +262,6 @@ async def pw_token_cb(client, query):
             "Even expired tokens may work for some batches.\n"
             "Send /cancel to abort."
         )
-        from Extractor.modules.pw import user_data, AWAITING_TOKEN
         user_data[chat_id] = {"state": AWAITING_TOKEN}
     except Exception as e:
         LOGGER.error(f"pw_token_cb error: {e}")
@@ -257,7 +285,6 @@ async def pw_nologin_cb(client, query):
             pass
         chat_id = query.from_user.id
 
-        from Extractor.modules.pw import user_data, AWAITING_KEYWORD, AWAITING_NL_TOKEN, _get_working_token
         token = _get_working_token()
 
         if not token:
