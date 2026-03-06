@@ -1,14 +1,14 @@
 # PW Extractor Bot - FIXED FILES
 
-## Files Updated (with 'ms' prefix)
+## Files Updated
 
 | File | Description |
 |------|-------------|
-| `msconfig.py` | Configuration with OWNER_ID=8703802029 |
-| `mspw.py` | Main PW module - OTP, Token, Extraction |
-| `msplans.py` | Premium plans - Fixed database errors |
-| `msplans_db.py` | MongoDB functions - SSL fix |
-| `msstart.py` | Start module - Fixed callbacks |
+| `config.py` | Configuration with OWNER_ID=87xxxx2029 |
+| `pw.py` | Main PW module - OTP, Token, Extraction |
+| `plans.py` | Premium plans - Fixed database errors |
+| `plans_db.py` | MongoDB functions - SSL fix |
+| `start.py` | Start module - Fixed callbacks |
 
 ## Key Fixes Applied
 
