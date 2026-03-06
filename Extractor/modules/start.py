@@ -19,7 +19,7 @@ def get_start_keyboard():
         [InlineKeyboardButton("🚀 Physics Wallah 🚀", callback_data="pw_menu")],
         [InlineKeyboardButton("💎 My Plan", callback_data="myplan"),
          InlineKeyboardButton("❓ Help", callback_data="help")],
-        [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/SmartBoy_ApnaMS")]
+        [InlineKeyboardButton("📢 Updates Channel🌚", url="https://t.me/SmartBoy_ApnaMS")]
     ])
 
 
