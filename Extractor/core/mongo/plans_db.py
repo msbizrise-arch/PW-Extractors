@@ -1,6 +1,7 @@
 """
 MongoDB Database Functions for Premium Management
 Fixed: Added SSL parameters to fix connection issues on Render
+Fixed: Collection truth value testing error resolved
 """
 from motor.motor_asyncio import AsyncIOMotorClient as MongoCli
 from config import MONGO_URL
@@ -31,7 +32,10 @@ def get_mongo_client():
 # Initialize client
 mongo_client = get_mongo_client()
 
-if mongo_client:
+# Initialize db variable
+db = None
+
+if mongo_client is not None:
     try:
         db = mongo_client.premium.premium_db
         print("✅ MongoDB connected successfully")
@@ -44,7 +48,7 @@ else:
 
 async def add_premium(user_id, expire_date):
     """Add or update premium user"""
-    if not db:
+    if db is None:
         print("WARNING: Database not available, cannot add premium")
         return False
     
@@ -62,7 +66,7 @@ async def add_premium(user_id, expire_date):
 
 async def remove_premium(user_id):
     """Remove premium user"""
-    if not db:
+    if db is None:
         print("WARNING: Database not available, cannot remove premium")
         return False
     
@@ -76,7 +80,7 @@ async def remove_premium(user_id):
 
 async def check_premium(user_id):
     """Check if user has premium - returns data or None"""
-    if not db:
+    if db is None:
         print("WARNING: Database not available, cannot check premium")
         return None
     
@@ -90,7 +94,7 @@ async def check_premium(user_id):
 
 async def premium_users():
     """Get list of all premium user IDs"""
-    if not db:
+    if db is None:
         print("WARNING: Database not available, returning empty list")
         return []
     
