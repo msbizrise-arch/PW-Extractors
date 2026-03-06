@@ -7,7 +7,7 @@ IMG = [
 
 START_TXT = """**👋 Hello** {},
 
-🎓 **Welcome to PW Extractor Bot!** 🚀
+🎓 **Welcome to PW Extractor Bot!** 🌚🙈🚀
 
 I'm your personal **Physics Wallah** content extractor.
 
