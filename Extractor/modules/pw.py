@@ -1,7 +1,8 @@
 """
-PW (Physics Wallah) Extraction Module - Advanced Build
+PW (Physics Wallah) Extraction Module - Advanced Build v2.0
+Fixed: OTP sending, Token validation, Batch fetching, Without Login
 Features:
-  - Login via Mobile OTP (fixed: proper PW API v3 endpoints)
+  - Login via Mobile OTP (fixed: proper PW API v3 endpoints with correct headers)
   - Login via Direct Token (fixed: validation + duplicate token support)
   - Without Login (keyword-based batch search with universal token)
   - All batch listings with SN numbers (1, 2, 3...)
@@ -15,7 +16,10 @@ import os
 import logging
 from pyrogram import filters
 from Extractor import app
-from config import PW_ORG_ID, PW_CLIENT_SECRET, PW_BASE_URL, PW_UNIVERSAL_TOKEN
+from config import (
+    PW_ORG_ID, PW_CLIENT_SECRET, PW_BASE_URL, PW_UNIVERSAL_TOKEN,
+    PW_HEADERS_TEMPLATE, PW_WEB_HEADERS
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,24 +34,26 @@ AWAITING_SUBJECTS = "awaiting_subjects"
 AWAITING_KEYWORD = "awaiting_keyword"
 AWAITING_BATCH_SELECT = "awaiting_batch_select"
 AWAITING_SUBJECTS_NL = "awaiting_subjects_nl"
-AWAITING_NL_TOKEN = "awaiting_nl_token"  # ask user for token if universal not set
+AWAITING_NL_TOKEN = "awaiting_nl_token"
 
 # User data store: {user_id: {"state": str, ...}}
 user_data = {}
 
 # ====================== PW API HEADERS ======================
-def get_pw_headers(token: str) -> dict:
+def get_pw_headers(token: str = None) -> dict:
     """Build PW API headers with given bearer token."""
-    return {
-        "Host": "api.penpencil.co",
-        "authorization": f"Bearer {token}",
-        "client-id": PW_ORG_ID,
-        "client-version": "12.84",
-        "user-agent": "Android",
-        "randomid": "e4307177362e86f1",
-        "client-type": "MOBILE",
-        "content-type": "application/json",
-    }
+    headers = PW_HEADERS_TEMPLATE.copy()
+    if token:
+        headers["authorization"] = f"Bearer {token}"
+    return headers
+
+
+def get_pw_web_headers(token: str = None) -> dict:
+    """Build PW Web headers for browser-like requests."""
+    headers = PW_WEB_HEADERS.copy()
+    if token:
+        headers["authorization"] = f"Bearer {token}"
+    return headers
 
 
 def _validate_token(token: str) -> dict:
@@ -214,26 +220,21 @@ async def handle_phone(client, message, phone):
     status = await message.reply_text("📤 Sending OTP...")
 
     try:
-        # Try v3 endpoint first (newer)
+        # FIXED: Use proper v3 endpoint with correct headers
         resp = requests.post(
             f"{PW_BASE_URL}/v3/users/get-otp",
             json={
                 "username": f"+91{phone}",
                 "organizationId": PW_ORG_ID,
+                "otpType": "login",
             },
-            headers={
-                "Content-Type": "application/json",
-                "client-id": PW_ORG_ID,
-                "client-type": "MOBILE",
-                "client-version": "12.84",
-                "user-agent": "Android",
-                "randomid": "e4307177362e86f1",
-            },
+            headers=get_pw_headers(),
             timeout=15,
         )
         data = resp.json()
+        LOGGER.info(f"OTP send response: {data}")
 
-        if resp.status_code == 200 and data.get("success", True):
+        if resp.status_code == 200 and data.get("success", False):
             user_data[user_id]["phone"] = phone
             user_data[user_id]["state"] = AWAITING_OTP
             await status.edit_text(
@@ -241,7 +242,11 @@ async def handle_phone(client, message, phone):
                 "🔢 **Now send the OTP you received.**\n\n"
                 "Send /cancel to abort."
             )
-        elif "does not exist" in str(data.get("error", {}).get("message", "")):
+        elif "too many requests" in str(data).lower() or resp.status_code == 429:
+            # Rate limit - try alternative endpoint
+            await status.edit_text(
+                "⚠️ **Rate limit hit. Trying alternative method...**"
+            )
             # Try v1 endpoint as fallback
             resp2 = requests.post(
                 f"{PW_BASE_URL}/v1/users/get-otp",
@@ -252,11 +257,15 @@ async def handle_phone(client, message, phone):
                 headers={
                     "Content-Type": "application/json",
                     "client-id": PW_ORG_ID,
+                    "client-type": "MOBILE",
+                    "client-version": "12.84",
                 },
                 timeout=15,
             )
             data2 = resp2.json()
-            if resp2.status_code == 200 and data2.get("success", True):
+            LOGGER.info(f"OTP fallback response: {data2}")
+            
+            if resp2.status_code == 200 and data2.get("success", False):
                 user_data[user_id]["phone"] = phone
                 user_data[user_id]["state"] = AWAITING_OTP
                 await status.edit_text(
@@ -265,17 +274,18 @@ async def handle_phone(client, message, phone):
                     "Send /cancel to abort."
                 )
             else:
-                err = data2.get("error", {}).get("message", data2.get("message", "Unknown error"))
+                err = data2.get("message", data2.get("error", {}).get("message", "Unknown error"))
                 await status.edit_text(
                     f"❌ **Failed to send OTP:** {err}\n\n"
-                    "Make sure you have a PW account with this number.\n"
+                    "Please wait a few minutes and try again.\n"
                     "Try again with /start"
                 )
                 user_data.pop(user_id, None)
         else:
-            err = data.get("error", {}).get("message", data.get("message", "Unknown error"))
+            err = data.get("message", data.get("error", {}).get("message", "Unknown error"))
             await status.edit_text(
                 f"❌ **Failed to send OTP:** {err}\n\n"
+                "Make sure you have a PW account with this number.\n"
                 "Try again with /start"
             )
             user_data.pop(user_id, None)
@@ -304,27 +314,23 @@ async def handle_otp(client, message, otp):
     status = await message.reply_text("🔐 Verifying OTP...")
 
     try:
+        # FIXED: Use proper OAuth token endpoint with correct parameters
         resp = requests.post(
             f"{PW_BASE_URL}/v3/oauth/token",
             json={
                 "username": f"+91{phone}",
                 "otp": otp,
-                "client_id": PW_ORG_ID,
+                "client_id": "system-admin",
                 "client_secret": PW_CLIENT_SECRET,
                 "grant_type": "password",
                 "organizationId": PW_ORG_ID,
+                "type": "USER",
             },
-            headers={
-                "Content-Type": "application/json",
-                "client-id": PW_ORG_ID,
-                "client-type": "MOBILE",
-                "client-version": "12.84",
-                "user-agent": "Android",
-                "randomid": "e4307177362e86f1",
-            },
+            headers=get_pw_headers(),
             timeout=15,
         )
         data = resp.json()
+        LOGGER.info(f"OTP verify response: {data}")
 
         if "access_token" in data or "token" in data:
             token = data.get("access_token", data.get("token", ""))
@@ -369,11 +375,12 @@ async def handle_token_input(client, message, token):
 
     status = await message.reply_text("🔍 Validating token...")
 
-    # Try fetching batches directly (even expired tokens may partially work)
+    # Store token and try fetching batches
     user_data[user_id]["token"] = token
     headers = get_pw_headers(token)
 
     try:
+        # FIXED: Try multiple endpoints for batch fetching
         resp = requests.get(
             f"{PW_BASE_URL}/v3/batches/my-batches",
             headers=headers,
@@ -388,14 +395,13 @@ async def handle_token_input(client, message, token):
             )
             await show_batches_login(client, message, token)
         elif resp.status_code == 401:
-            # Token might be expired — try refreshing or inform user
+            # Token might be expired — inform user but still try
             await status.edit_text(
                 "⚠️ **Token may be expired or invalid.**\n\n"
                 "But trying to fetch batches anyway...\n"
                 "If no batches found, please get a fresh token.\n\n"
                 "You can get a new token via **📱 Mobile OTP** login."
             )
-            # Still try to show batches (might get partial data)
             await show_batches_login(client, message, token)
         else:
             await status.edit_text(
@@ -417,6 +423,10 @@ async def show_batches_login(client, message, token):
     headers = get_pw_headers(token)
 
     try:
+        # FIXED: Try multiple endpoints for fetching batches
+        batches = []
+        
+        # Try my-batches endpoint first
         resp = requests.get(
             f"{PW_BASE_URL}/v3/batches/my-batches",
             headers=headers,
@@ -424,6 +434,17 @@ async def show_batches_login(client, message, token):
         )
         data = resp.json()
         batches = data.get("data", [])
+        
+        # If no batches, try alternative endpoint
+        if not batches:
+            resp2 = requests.get(
+                f"{PW_BASE_URL}/v3/batches?organizationId={PW_ORG_ID}&page=1&limit=100",
+                headers=headers,
+                timeout=20,
+            )
+            data2 = resp2.json()
+            if data2.get("data"):
+                batches = data2.get("data", [])
 
         if not batches:
             err_msg = data.get("message", "")
@@ -628,6 +649,7 @@ async def handle_keyword(client, message, keyword):
 
         while len(results) < 50:
             try:
+                # FIXED: Use proper PW batch search endpoint
                 resp = requests.get(
                     f"{PW_BASE_URL}/v3/batches",
                     params={
@@ -639,6 +661,7 @@ async def handle_keyword(client, message, keyword):
                     timeout=20,
                 )
                 data = resp.json()
+                LOGGER.info(f"Batch search page {page}: {len(data.get('data', []))} results")
 
                 batch_list = data.get("data", [])
                 if not batch_list:
@@ -1040,6 +1063,7 @@ def _convert_to_cdn_link(url):
         "d1d34p8vz63oiq.cloudfront.net": "d26g5bnklkwsh4.cloudfront.net",
         "d2bps9p1kber4v.cloudfront.net": "d26g5bnklkwsh4.cloudfront.net",
         "d3cvwyf9ksu0h5.cloudfront.net": "d26g5bnklkwsh4.cloudfront.net",
+        "d1kwv1j9v54g2g.cloudfront.net": "d26g5bnklkwsh4.cloudfront.net",
     }
 
     for old_domain, new_domain in cdn_replacements.items():
