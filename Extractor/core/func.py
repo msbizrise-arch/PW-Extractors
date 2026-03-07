@@ -1,6 +1,6 @@
 """
-Helper Functions Module
-Fixed: Better error handling for MongoDB issues - bot won't crash if DB fails
+Helper Functions Module - UPDATED
+Fixed: Better error handling for MongoDB issues
 """
 from config import CHANNEL_ID, SUDO_USERS, OWNER_ID
 from Extractor.core.script import FORCE_MSG
