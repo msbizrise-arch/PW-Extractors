@@ -1,7 +1,10 @@
 """
 Database Module - FIXED
-Works with or without MongoDB
-If MongoDB fails, uses in-memory storage for OWNER only
+✅ Works with or without MongoDB
+✅ If MongoDB fails, uses in-memory storage for OWNER only
+✅ Fixed: SSL handshake errors on Render by trying tls=False fallback
+✅ Fixed: Collection truth value testing (if db is None)
+✅ Fixed: Proper error handling in all database functions
 """
 import logging
 from datetime import datetime, timedelta
@@ -23,12 +26,11 @@ _db = None
 _mongo_client = None
 _db_available = False
 
-
 def init_database():
-    """Initialize database connection"""
+    """Initialize database connection with SSL fallback."""
     global _db, _mongo_client, _db_available
     
-    if not MONGO_URL or not MOTOR_AVAILABLE:
+    if not USE_DATABASE or not MONGO_URL or not MOTOR_AVAILABLE:
         LOGGER.warning("MongoDB not available. Using in-memory storage.")
         _db_available = False
         return False
@@ -45,8 +47,7 @@ def init_database():
         )
         _db = _mongo_client.premium.premium_db
         _db_available = True
-        LOGGER.info("MongoDB connected successfully (SSL)")
-        return True
+        LOGGER.info("MongoDB connected successfully (SSL)")        return True
     except Exception as e1:
         LOGGER.warning(f"MongoDB SSL connection failed: {e1}, trying without SSL...")
         try:
@@ -67,15 +68,12 @@ def init_database():
             _db_available = False
             return False
 
-
 # Initialize on module load
 init_database()
 
-
-# ==================== PREMIUM FUNCTIONS ====================
-
+# ====================== PREMIUM FUNCTIONS ======================
 async def add_premium(user_id, expire_date):
-    """Add premium to user"""
+    """Add premium to user."""
     global _db_available
     
     if _db_available and _db is not None:
@@ -96,11 +94,9 @@ async def add_premium(user_id, expire_date):
     LOGGER.info(f"Premium added for user {user_id} (in-memory)")
     return True
 
-
 async def remove_premium(user_id):
-    """Remove premium from user"""
-    global _db_available
-    
+    """Remove premium from user."""
+    global _db_available    
     # Remove from in-memory
     if user_id in _in_memory_premium:
         del _in_memory_premium[user_id]
@@ -117,9 +113,8 @@ async def remove_premium(user_id):
     LOGGER.info(f"Premium removed for user {user_id} (in-memory)")
     return True
 
-
 async def check_premium(user_id):
-    """Check if user has premium - returns data or None"""
+    """Check if user has premium - returns data or None."""
     global _db_available
     
     # OWNER is always premium
@@ -137,7 +132,7 @@ async def check_premium(user_id):
     if _db_available and _db is not None:
         try:
             data = await _db.find_one({"_id": user_id})
-            if data:
+            if 
                 # Cache in memory
                 _in_memory_premium[user_id] = data
             return data
@@ -147,12 +142,10 @@ async def check_premium(user_id):
     
     return None
 
-
 async def is_premium_user(user_id):
-    """Check if user is premium (boolean)"""
+    """Check if user is premium (boolean)."""
     # OWNER is always premium
-    if user_id == OWNER_ID:
-        return True
+    if user_id == OWNER_ID:        return True
     
     data = await check_premium(user_id)
     if data is None:
@@ -171,9 +164,8 @@ async def is_premium_user(user_id):
     
     return False
 
-
 async def premium_users():
-    """Get list of all premium user IDs"""
+    """Get list of all premium user IDs."""
     global _db_available
     users = list(_in_memory_premium.keys())
     
