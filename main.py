@@ -50,7 +50,11 @@ async def start_bot():
     LOGGER.info("=" * 50)
     LOGGER.info("🚀 PW-Extractor Bot Started Successfully!")
     LOGGER.info("=" * 50)
-    LOGGER.info(f"Bot Username: {(await pyrogram_app.get_me()).username}")
+    try:
+        me = await pyrogram_app.get_me()
+        LOGGER.info(f"Bot Username: @{me.username}")
+    except Exception as e:
+        LOGGER.warning(f"Could not get bot username: {e}")
     LOGGER.info("Send /start in Telegram to use the bot")
     LOGGER.info("=" * 50)
     await idle()
