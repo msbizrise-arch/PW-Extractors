@@ -32,7 +32,7 @@ async def subscribe(client, message):
         except Exception:
             return 0
         await message.reply_photo(
-            "https://graph.org/file/b7a933f423c153f866699.jpg",
+            "https://graph.org/file/2eb3c7ed975b9f9dffaa5-9b991b04b9478b1026.jpg",
             caption=script.FORCE_MSG.format(message.from_user.mention),
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("Join Channel", url=url)]]
