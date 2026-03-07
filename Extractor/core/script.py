@@ -3,9 +3,16 @@
 IMG = [
     "https://graph.org/file/a5ad11e14714f9da64830-c5cf91c2ce7d6127ae.jpg",
     "https://graph.org/file/64c0f2767c6b1c5e88df2-d5f4d5e06658e3dbe9.jpg"
+    "https://graph.org/file/a7defa3fc5af14e1ef64d-6aaf13e93fca95cfb2.jpg"
+    "https://graph.org/file/0477971c295c3ece935ef-2af948bd4f14c6d1da.jpg"
+    "https://graph.org/file/9664850ce3c6ebaa5007e-e812fa25118aa1a1d7.jpg"
+    "https://graph.org/file/b7466fa9700260aab4f77-a48f2b54d2f8328112.jpg"
+    "https://graph.org/file/2eb3c7ed975b9f9dffaa5-9b991b04b9478b1026.jpg"
+    "https://graph.org/file/e5cbc501850bf1c4351f6-2e913a534c92f5f5f8.jpg"
+    "https://graph.org/file/b48abf3696926fd6f36b3-9e1be53031a43a444d.jpg"
 ]
 
-START_TXT = """**👋 Hello** {},
+START_TXT = """**👋 Hello Dear** {},
 
 🎓 **Welcome to PW Extractor Bot!🚀**
 
