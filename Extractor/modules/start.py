@@ -1,17 +1,16 @@
 """
 Start Module - Handles /start command and callbacks
-✅ Fixed: All callback handlers properly pass user context
-✅ Fixed: Premium check integration with plans_db
-✅ Fixed: All buttons work correctly with updated pw.py states
-✅ Added: Proper error handling for edit_text MESSAGE_NOT_MODIFIED
+Fixed: All callback handlers properly pass user context.
+       All buttons work correctly.
+       Added /help command handler.
 """
 import logging
-from pyrogram import filters, Client
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Extractor import app
 from Extractor.core.script import START_TXT, IMG, HELP_TXT, PREMIUM_TXT
 from Extractor.core.func import subscribe, chk_user
-from config import OWNER_ID, USE_DATABASE
+from Extractor.modules.pw import pw_mobile, pw_token, pw_nologin
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +24,7 @@ def get_start_keyboard():
         [InlineKeyboardButton("📢 Updates Channel", url="https://t.me/SmartBoy_ApnaMS")]
     ])
 
+
 def get_pw_menu_keyboard():
     """PW login method selection keyboard."""
     return InlineKeyboardMarkup([
@@ -34,11 +34,13 @@ def get_pw_menu_keyboard():
         [InlineKeyboardButton("🔙 Back", callback_data="go_start")]
     ])
 
+
 def get_back_keyboard():
     """Simple back button keyboard."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 Back", callback_data="go_start")]
     ])
+
 
 def get_premium_required_keyboard():
     """Premium required keyboard."""
@@ -47,17 +49,21 @@ def get_premium_required_keyboard():
         [InlineKeyboardButton("🔙 Back", callback_data="go_start")]
     ])
 
-# ====================== /start COMMAND ======================@app.on_message(filters.command("start") & filters.private)
-async def start_cmd(client: Client, message: Message):
+
+# ====================== /start COMMAND ======================
+@app.on_message(filters.command("start") & filters.private)
+async def start_cmd(client, message):
     """Handle /start command."""
+    # Check channel subscription
     try:
         if await subscribe(client, message):
             return
     except Exception as e:
         LOGGER.error(f"Subscribe check error: {e}")
-    
+
     user_mention = message.from_user.mention if message.from_user else "User"
-    
+
+    # Send welcome message with buttons
     try:
         await message.reply_photo(
             IMG[0],
@@ -66,6 +72,7 @@ async def start_cmd(client: Client, message: Message):
         )
     except Exception as e:
         LOGGER.error(f"Start photo error: {e}")
+        # Fallback to text-only message
         try:
             await message.reply_text(
                 START_TXT.format(user_mention),
@@ -74,86 +81,77 @@ async def start_cmd(client: Client, message: Message):
         except Exception as e2:
             LOGGER.error(f"Start text fallback error: {e2}")
 
+
 # ====================== /help COMMAND ======================
 @app.on_message(filters.command("help") & filters.private)
-async def help_cmd(client: Client, message: Message):
+async def help_cmd(client, message):
     """Handle /help command."""
-    await message.reply_text(HELP_TXT, reply_markup=get_back_keyboard())
+    await message.reply_text(
+        HELP_TXT,
+        reply_markup=get_back_keyboard(),
+    )
+
 
 # ====================== CALLBACK HANDLERS ======================
 @app.on_callback_query(filters.regex("^check_sub$"))
-async def check_sub_cb(client: Client, query: CallbackQuery):
+async def check_sub_cb(client, query):
     """Check subscription again after joining channel."""
     try:
         await query.answer()
         await query.message.delete()
-        await client.send_message(query.from_user.id, "/start")
+        # Create a fake-like message object with the user's info
+        # by sending a new start flow
+        await client.send_message(
+            query.from_user.id,
+            "/start",
+        )
     except Exception as e:
         LOGGER.error(f"check_sub_cb error: {e}")
-        if "MESSAGE_NOT_MODIFIED" not in str(e):
-            await query.answer("Error! Send /start manually.", show_alert=True)
+        await query.answer("Error! Send /start manually.", show_alert=True)
+
 
 @app.on_callback_query(filters.regex("^pw_menu$"))
-async def pw_menu_cb(client: Client, query: CallbackQuery):
+async def pw_menu_cb(client, query):
     """Show PW menu with login method options."""
-    try:        await query.answer()
-        user_id = query.from_user.id
-        
-        # OWNER always has access
-        if user_id == OWNER_ID and OWNER_ID != 0:
-            await _safe_edit(query, 
-                "**🔐 Choose Login Method:**\n\n"
-                "📱 **Mobile + OTP** — Login with your PW registered number\n"
-                "🔑 **Direct Token** — Paste your PW bearer token\n"
-                "🔓 **Without Login** — Search & extract batches directly",
-                get_pw_menu_keyboard()
-            )
-            return
-        
-        # Check premium access
-        not_allowed = await chk_user(user_id)
-        if not_allowed:
+    try:
+        await query.answer()
+        # Check if user is premium
+        is_premium = await chk_user(query.from_user.id)
+        if is_premium:
             await query.answer("You need premium access!", show_alert=True)
-            await _safe_edit(query,
+            await query.message.edit_text(
                 "**💎 Premium Required!**\n\n"
                 "You need to purchase a plan to use this feature.\n"
                 "Contact admin to get premium access!",
-                get_premium_required_keyboard()
+                reply_markup=get_premium_required_keyboard(),
             )
             return
-        
-        await _safe_edit(query,
+
+        await query.message.edit_text(
             "**🔐 Choose Login Method:**\n\n"
             "📱 **Mobile + OTP** — Login with your PW registered number\n"
             "🔑 **Direct Token** — Paste your PW bearer token\n"
             "🔓 **Without Login** — Search & extract batches directly",
-            get_pw_menu_keyboard()
+            reply_markup=get_pw_menu_keyboard(),
         )
     except Exception as e:
         LOGGER.error(f"pw_menu_cb error: {e}")
-        if "MESSAGE_NOT_MODIFIED" not in str(e):
-            await query.answer("Error occurred! Try /start", show_alert=True)
+        await query.answer("Error occurred! Try /start", show_alert=True)
 
-async def _safe_edit(query: CallbackQuery, text: str, reply_markup=None):
-    """Safely edit message, handling MESSAGE_NOT_MODIFIED error."""
-    try:
-        await query.message.edit_text(text, reply_markup=reply_markup)
-    except Exception as e:
-        if "MESSAGE_NOT_MODIFIED" not in str(e):
-            raise
-        LOGGER.debug(f"Message not modified (same content): {query.message.id}")
 
 @app.on_callback_query(filters.regex("^go_start$"))
-async def go_start_cb(client: Client, query: CallbackQuery):
-    """Back to start menu."""    try:
+async def go_start_cb(client, query):
+    """Back to start menu."""
+    try:
         await query.answer()
         user_mention = query.from_user.mention if query.from_user else "User"
-        
+
         try:
             await query.message.delete()
         except Exception:
             pass
-        
+
+        # Send fresh start message
         try:
             await client.send_photo(
                 query.from_user.id,
@@ -170,17 +168,22 @@ async def go_start_cb(client: Client, query: CallbackQuery):
     except Exception as e:
         LOGGER.error(f"go_start_cb error: {e}")
 
+
 @app.on_callback_query(filters.regex("^help$"))
-async def help_cb(client: Client, query: CallbackQuery):
+async def help_cb(client, query):
     """Show help text."""
     try:
         await query.answer()
-        await _safe_edit(query, HELP_TXT, get_back_keyboard())
+        await query.message.edit_text(
+            HELP_TXT,
+            reply_markup=get_back_keyboard(),
+        )
     except Exception as e:
         LOGGER.error(f"help_cb error: {e}")
 
+
 @app.on_callback_query(filters.regex("^pw_mobile$"))
-async def pw_mobile_cb(client: Client, query: CallbackQuery):
+async def pw_mobile_cb(client, query):
     """Start mobile OTP login flow."""
     try:
         await query.answer()
@@ -188,19 +191,31 @@ async def pw_mobile_cb(client: Client, query: CallbackQuery):
             await query.message.delete()
         except Exception:
             pass
-        
+        # Send message directly to user (not using query.message which lacks from_user)
         chat_id = query.from_user.id
-        from Extractor.modules.pw import user_data, AWAITING_PHONE, pw_mobile
+        # Create a simple namespace to pass to pw_mobile
+        await client.send_message(
+            chat_id,
+            "**📱 Send your mobile number (without +91)**\n"
+            "Example: `9876543210`\n\n"
+            "Send /cancel to abort."
+        )
+        # Set the state directly
+        from Extractor.modules.pw import user_data, AWAITING_PHONE
         user_data[chat_id] = {"state": AWAITING_PHONE}
-        await pw_mobile(client, query.message)
     except Exception as e:
-        LOGGER.error(f"pw_mobile_cb error: {e}")        try:
-            await client.send_message(query.from_user.id, f"❌ Error: {str(e)}\n\nSend /start to try again.")
+        LOGGER.error(f"pw_mobile_cb error: {e}")
+        try:
+            await client.send_message(
+                query.from_user.id,
+                f"❌ Error: {str(e)}\n\nSend /start to try again."
+            )
         except Exception:
             pass
 
+
 @app.on_callback_query(filters.regex("^pw_token$"))
-async def pw_token_cb(client: Client, query: CallbackQuery):
+async def pw_token_cb(client, query):
     """Start direct token login flow."""
     try:
         await query.answer()
@@ -208,20 +223,31 @@ async def pw_token_cb(client: Client, query: CallbackQuery):
             await query.message.delete()
         except Exception:
             pass
-        
         chat_id = query.from_user.id
-        from Extractor.modules.pw import user_data, AWAITING_TOKEN, pw_token
+        await client.send_message(
+            chat_id,
+            "**🔑 Send your PW Bearer Token**\n\n"
+            "You can find this in:\n"
+            "- Browser DevTools -> Network tab -> Authorization header\n"
+            "- PW App (intercept traffic)\n\n"
+            "Even expired tokens may work for some batches.\n"
+            "Send /cancel to abort."
+        )
+        from Extractor.modules.pw import user_data, AWAITING_TOKEN
         user_data[chat_id] = {"state": AWAITING_TOKEN}
-        await pw_token(client, query.message)
     except Exception as e:
         LOGGER.error(f"pw_token_cb error: {e}")
         try:
-            await client.send_message(query.from_user.id, f"❌ Error: {str(e)}\n\nSend /start to try again.")
+            await client.send_message(
+                query.from_user.id,
+                f"❌ Error: {str(e)}\n\nSend /start to try again."
+            )
         except Exception:
             pass
 
+
 @app.on_callback_query(filters.regex("^pw_nologin$"))
-async def pw_nologin_cb(client: Client, query: CallbackQuery):
+async def pw_nologin_cb(client, query):
     """Start without login flow."""
     try:
         await query.answer()
@@ -229,28 +255,61 @@ async def pw_nologin_cb(client: Client, query: CallbackQuery):
             await query.message.delete()
         except Exception:
             pass
-        
         chat_id = query.from_user.id
-        from Extractor.modules.pw import user_data, AWAITING_KEYWORD, AWAITING_NL_TOKEN, pw_nologin
-        user_data[chat_id] = {"state": AWAITING_KEYWORD}  # Will be updated in pw_nologin
-        await pw_nologin(client, query.message)
+
+        from Extractor.modules.pw import user_data, AWAITING_KEYWORD, AWAITING_NL_TOKEN, _get_working_token
+        token = _get_working_token()
+
+        if not token:
+            user_data[chat_id] = {"state": AWAITING_NL_TOKEN}
+            await client.send_message(
+                chat_id,
+                "**🔓 Without Login — PW Batch Access**\n\n"
+                "No universal token is configured.\n"
+                "Please send a **working PW Bearer Token** to access batches.\n\n"
+                "This token will be used to search and extract all PW batches.\n"
+                "A universal token gives access to all batches.\n\n"
+                "Send /cancel to abort."
+            )
+        else:
+            user_data[chat_id] = {"state": AWAITING_KEYWORD, "nl_token": token}
+            await client.send_message(
+                chat_id,
+                "**🔓 Without Login — PW Batch Search**\n\n"
+                "Type a **batch keyword** to search all PW batches:\n\n"
+                "Examples:\n"
+                "- `Yakeen` -> Yakeen NEET Hindi 2026...\n"
+                "- `Arjuna` -> Arjuna JEE 2026...\n"
+                "- `Lakshya` -> Lakshya JEE, Lakshya NEET...\n"
+                "- `Prayas` -> Prayas JEE 2026...\n\n"
+                "Send /cancel to abort."
+            )
     except Exception as e:
         LOGGER.error(f"pw_nologin_cb error: {e}")
         try:
-            await client.send_message(query.from_user.id, f"❌ Error: {str(e)}\n\nSend /start to try again.")
+            await client.send_message(
+                query.from_user.id,
+                f"❌ Error: {str(e)}\n\nSend /start to try again."
+            )
         except Exception:
             pass
 
+
 @app.on_callback_query(filters.regex("^plans$"))
-async def plans_cb(client: Client, query: CallbackQuery):
-    """Show premium plans."""    try:
+async def plans_cb(client, query):
+    """Show premium plans."""
+    try:
         await query.answer()
-        await _safe_edit(query, PREMIUM_TXT, get_back_keyboard())
+        await query.message.edit_text(
+            PREMIUM_TXT,
+            reply_markup=get_back_keyboard(),
+        )
     except Exception as e:
         LOGGER.error(f"plans_cb error: {e}")
 
+
 @app.on_callback_query(filters.regex("^myplan$"))
-async def myplan_cb(client: Client, query: CallbackQuery):
+async def myplan_cb(client, query):
     """Handle My Plan button."""
     try:
         await query.answer()
