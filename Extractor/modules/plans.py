@@ -6,9 +6,14 @@ from datetime import timedelta
 import pytz
 import datetime
 from Extractor import app
-from SPconfig import ADMIN_IDS, PREMIUM_LOGS, OWNER_ID
+from config import ADMIN_IDS, PREMIUM_LOGS, OWNER_ID
 from Extractor.core.func import get_seconds
-from SPdatabase import add_premium, remove_premium, check_premium, premium_users, is_premium_user
+from Extractor.core.mongo.plans_db import (
+    add_premium,
+    remove_premium,
+    check_premium,
+    premium_users,
+)
 from pyrogram import filters
 from pyrogram.types import Message
 import logging
@@ -165,17 +170,15 @@ async def myplan_cmd(client, message: Message):
         )
         return
     
-    is_premium = await is_premium_user(user_id)
+    data = await check_premium(user_id)
     
-    if not is_premium:
+    if not data or "expire_date" not in data:
         await message.reply_text(
             f"👤 **User:** {user_mention}\n\n"
             f"❌ No active premium plan.\n\n"
             f"💎 Contact admin to get premium access!"
         )
         return
-    
-    data = await check_premium(user_id)
     
     try:
         expiry = data.get("expire_date")
@@ -219,16 +222,15 @@ async def show_plan(client, query):
             f"📅 Expiry: **Never (OWNER)**"
         )
     else:
-        is_premium = await is_premium_user(user_id)
+        data = await check_premium(user_id)
         
-        if not is_premium:
+        if not data or "expire_date" not in data:
             text = (
                 f"👤 **User:** {user_mention}\n\n"
                 f"❌ No active premium plan.\n\n"
                 f"💎 Contact admin to get premium access!"
             )
         else:
-            data = await check_premium(user_id)
             try:
                 expiry = data.get("expire_date")
                 tz = pytz.timezone("Asia/Kolkata")
