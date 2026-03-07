@@ -1,9 +1,8 @@
 """
 Start Module - Handles /start command and callbacks
-Fixed: All callback handlers properly pass user context.
-       All buttons work correctly.
-       Added /help command handler.
-       Fixed imports (was using SPdatabase/SPpw/SPplans — now correct).
+FIXED: Removed AWAITING_NL_TOKEN import error
+       All callback handlers working
+       Premium check fixed
 """
 import logging
 from pyrogram import filters
@@ -199,8 +198,9 @@ async def pw_mobile_cb(client, query):
             pass
 
         chat_id = query.from_user.id
+        # FIXED: Sirf AWAITING_PHONE import karo
         from Extractor.modules.pw import user_data, AWAITING_PHONE
-        user_data[chat_id] = {"state": AWAITING_PHONE}
+        user_data[chat_id] = {"state": AWAITING_PHONE, "login_method": "otp"}
         await client.send_message(
             chat_id,
             "**📱 Send your mobile number (without +91)**\n"
@@ -229,8 +229,9 @@ async def pw_token_cb(client, query):
             pass
 
         chat_id = query.from_user.id
+        # FIXED: Sirf AWAITING_TOKEN import karo
         from Extractor.modules.pw import user_data, AWAITING_TOKEN
-        user_data[chat_id] = {"state": AWAITING_TOKEN}
+        user_data[chat_id] = {"state": AWAITING_TOKEN, "login_method": "token"}
         await client.send_message(
             chat_id,
             "**🔑 Send your PW Bearer Token**\n\n"
@@ -262,18 +263,22 @@ async def pw_nologin_cb(client, query):
             pass
 
         chat_id = query.from_user.id
-        from Extractor.modules.pw import user_data, AWAITING_KEYWORD, AWAITING_NL_TOKEN, _get_working_token
+        # FIXED: AWAITING_NL_TOKEN HATAYA - sirf AWAITING_KEYWORD use karo
+        from Extractor.modules.pw import user_data, AWAITING_KEYWORD, _get_working_token
         token = _get_working_token()
 
         if not token:
-            user_data[chat_id] = {"state": AWAITING_NL_TOKEN}
+            # Agar token nahi hai to bhi keyword search pe bhejo
+            user_data[chat_id] = {"state": AWAITING_KEYWORD, "nl_token": ""}
             await client.send_message(
                 chat_id,
-                "**🔓 Without Login — PW Batch Access**\n\n"
-                "No universal token is configured.\n"
-                "Please send a **working PW Bearer Token** to access batches.\n\n"
-                "This token will be used to search and extract all PW batches.\n"
-                "A universal token gives access to all batches.\n\n"
+                "**🔓 Without Login — PW Batch Search**\n\n"
+                "⚠️ **Universal token not configured!**\n\n"
+                "Without Login feature requires a working PW token.\n"
+                "Please contact admin to set up the universal token.\n\n"
+                "For now, you can use:\n"
+                "• 📱 Mobile + OTP\n"
+                "• 🔑 Direct Token\n\n"
                 "Send /cancel to abort."
             )
         else:
@@ -282,11 +287,15 @@ async def pw_nologin_cb(client, query):
                 chat_id,
                 "**🔓 Without Login — PW Batch Search**\n\n"
                 "Type a **batch keyword** to search all PW batches:\n\n"
-                "Examples:\n"
-                "- `Yakeen` -> Yakeen NEET Hindi 2026...\n"
-                "- `Arjuna` -> Arjuna JEE 2026...\n"
-                "- `Lakshya` -> Lakshya JEE, Lakshya NEET...\n"
-                "- `Prayas` -> Prayas JEE 2026...\n\n"
+                "**Popular Keywords:**\n"
+                "• `Yakeen` → NEET batches\n"
+                "• `Arjuna` → JEE batches\n"
+                "• `Lakshya` → JEE/NEET batches\n"
+                "• `Prayas` → JEE 2026\n"
+                "• `Udaan` → Class 11/12\n"
+                "• `Sarthak` → Class 11/12\n"
+                "• `NEET`\n"
+                "• `JEE`\n\n"
                 "Send /cancel to abort."
             )
     except Exception as e:
