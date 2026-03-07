@@ -13,7 +13,7 @@ try:
 except ImportError:
     MOTOR_AVAILABLE = False
 
-from SPconfig import MONGO_URL, OWNER_ID, USE_DATABASE
+from config import MONGO_URL, OWNER_ID, USE_DATABASE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,23 +34,38 @@ def init_database():
         return False
     
     try:
-        # Try connecting without SSL first
+        # Try connecting with SSL (for Render/Atlas deployments)
         _mongo_client = MongoCli(
             MONGO_URL,
-            tls=False,
-            serverSelectionTimeoutMS=3000,
-            connectTimeoutMS=3000,
-            socketTimeoutMS=5000,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=30000,
         )
         _db = _mongo_client.premium.premium_db
         _db_available = True
-        LOGGER.info("✅ MongoDB connected successfully")
+        LOGGER.info("MongoDB connected successfully (SSL)")
         return True
-    except Exception as e:
-        LOGGER.error(f"MongoDB connection failed: {e}")
-        LOGGER.warning("Using in-memory storage instead")
-        _db_available = False
-        return False
+    except Exception as e1:
+        LOGGER.warning(f"MongoDB SSL connection failed: {e1}, trying without SSL...")
+        try:
+            _mongo_client = MongoCli(
+                MONGO_URL,
+                tls=False,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                socketTimeoutMS=10000,
+            )
+            _db = _mongo_client.premium.premium_db
+            _db_available = True
+            LOGGER.info("MongoDB connected successfully (no SSL)")
+            return True
+        except Exception as e2:
+            LOGGER.error(f"MongoDB connection failed: {e2}")
+            LOGGER.warning("Using in-memory storage instead")
+            _db_available = False
+            return False
 
 
 # Initialize on module load
