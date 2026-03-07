@@ -1,5 +1,6 @@
 """
-PW Extractor Bot Configuration - FIXED
+PW Extractor Bot Configuration - FINAL
+Based on databasepw.py
 """
 import os
 from dotenv import load_dotenv
@@ -24,13 +25,11 @@ USE_DATABASE = bool(MONGO_URL)
 CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
 PREMIUM_LOGS = int(os.getenv("PREMIUM_LOGS", "0"))
 
-# ==================== PW API CONFIGURATION ====================
+# ==================== PW API CONFIGURATION (databasepw.py se) ====================
 PW_ORG_ID = "5eb393ee95fab7468a79d189"
 PW_CLIENT_ID = "system-admin"
 PW_CLIENT_SECRET = "KjPXuAVfC5xbmgreETNMaL7z"
 PW_BASE_URL = "https://api.penpencil.co"
 
-# ⚠️ CRITICAL: Universal Token for Without Login feature
-# Get this from a working PW account and set in .env
-# Example: PW_UNIVERSAL_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+# Universal Token for Without Login - set in .env
 PW_UNIVERSAL_TOKEN = os.getenv("PW_UNIVERSAL_TOKEN", "")
